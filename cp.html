@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Computer Login</title>
+  <style>
+    body { margin:0; padding:0; height:100vh; background:linear-gradient(to bottom right,#a9d6ff,#e6f3ff); font-family:Segoe UI; display:flex; flex-direction:column; align-items:center; padding-top:30px; }
+    h1 { color:#0b3d91; font-size:24px; font-weight:bold; margin:10px 0 8px; text-shadow:2px 2px 4px rgba(0,0,0,0.3); }
+    .form { width:85%; max-width:360px; text-align:center; }
+    label { font-weight:bold; color:#0b3d91; display:block; text-align:left; margin-bottom:6px; }
+    input { width:93%; padding:8px; margin-bottom:8px; border-radius:8px; border:1px solid #0b3d91; font-size:14px; }
+    #errorMsg { color:#e63946; font-size:12px; text-align:left; display:none; margin:-8px 0 8px; }
+    #loginBtn { width:100%; background:#0b3d91; color:white; border:none; padding:10px; border-radius:10px; font-weight:bold; font-size:18px; cursor:pointer; box-shadow:4px 6px 10px rgba(0,0,0,0.4); margin-top:12px; }
+    #loginBtn:hover { background:#094080; transform:scale(1.03); }
+    #loginBtn:disabled { opacity:0.6; cursor:not-allowed; }
+    .help-note { margin-top: 12px; font-size: 0.85rem; color: #003366; font-weight: 600; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>COMPUTER SECTION</h1>
+  <div class="form">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="Enter username">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="Enter password">
+    <div id="errorMsg">Invalid username or password</div>
+    <button id="loginBtn">LOGIN</button>
+    <div class="help-note">Get User Name and Password from Admin of this App</div>
+  </div>
+
+  <!-- FIREBASE -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBUZIjPpELrGAgfs49zTQrWAN8MpI_HKgo",
+      authDomain: "wages-portal.firebaseapp.com",
+      databaseURL: "https://wages-portal-default-rtdb.firebaseio.com",
+      projectId: "wages-portal",
+      storageBucket: "wages-portal.firebasestorage.app",
+      messagingSenderId: "999762293152",
+      appId: "1:999762293152:web:6aa4bf329901b9889f34c5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const loginBtn = document.getElementById('loginBtn');
+    const usernameIn = document.getElementById('username');
+    const passwordIn = document.getElementById('password');
+    const errorMsg = document.getElementById('errorMsg');
+
+    // FINAL: normalizeUnits — ANY INPUT → UNIT-12, UNIT-14
+    function normalizeUnits(input) {
+      if (!input) return '';
+      return input
+        .split(',')
+        .map(u => u.trim())
+        .filter(u => u)
+        .map(u => {
+          const match = u.toString().match(/(\d+)/);
+          return match ? `UNIT-${match[0].padStart(2, '0')}` : '';
+        })
+        .filter(u => u)
+        .join(', ');
+    }
+
+    loginBtn.onclick = () => {
+      const username = usernameIn.value.trim();
+      const password = passwordIn.value.trim();
+
+      if (!username || !password) {
+        errorMsg.textContent = 'Enter both fields';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      errorMsg.style.display = 'none';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Checking...';
+
+      db.ref('users').once('value')
+        .then(snap => {
+          let found = false;
+          let rawUnits = '';
+
+          snap.forEach(child => {
+            const u = child.val();
+            if (u.name === username && u.password === password) {
+              found = true;
+              rawUnits = u.unit; // e.g. "12,14" or "UNIT-12, UNIT-14"
+            }
+          });
+
+          if (found) {
+            const normalizedUnits = normalizeUnits(rawUnits); // → "UNIT-12, UNIT-14"
+            localStorage.setItem('computerUser', username);
+            localStorage.setItem('computerUnit', normalizedUnits);
+            location.href = 'ComputerSection.html';
+          } else {
+            errorMsg.textContent = 'Invalid username or password';
+            errorMsg.style.display = 'block';
+            passwordIn.value = '';
+          }
+        })
+        .catch(e => {
+          errorMsg.textContent = 'Error: ' + e.message;
+          errorMsg.style.display = 'block';
+        })
+        .finally(() => {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'LOGIN';
+        });
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Computer Section</title>
+  <style>
+    body {
+      margin: 0; padding: 0; min-height: 100vh;
+      background: linear-gradient(to bottom right, #f0f8ff, #d9e7ff);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      overflow-y: auto;
+    }
+    h1 {
+      color: #0b3d91; font-size: 24px; font-weight: bold; margin: 20px 0 6px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      text-align: center;
+      width: 95%; max-width: 800px;
+    }
+    .user-info {
+      width: 95%; max-width: 800px; text-align: left; margin-bottom: 10px;
+      font-size: 0.9rem; color: #0b3d91; font-weight: bold;
+    }
+    .container {
+      width: 95%; max-width: 800px; padding: 10px;
+    }
+    .card {
+      background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative;
+      transition: all 0.3s ease;
+    }
+    .card.pending { background: #ffffff; }
+    .card.done { background: #f0f0f0; opacity: 0.85; }
+    .card.verifying { background: #fffbe6; }
+
+    .card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; font-size: 0.95rem; color: #0b3d91;
+    }
+    .status {
+      font-weight: bold; font-size: 1rem;
+    }
+    .pending { color: #d35400; }
+    .done { color: #27ae60; }
+    .verifying { color: #f39c12; }
+
+    .card-body {
+      font-size: 0.9rem; line-height: 1.6;
+    }
+    .rtl { direction: rtl; text-align: right; font-family: 'Noto Nastaliq Urdu', Arial, sans-serif; }
+    .card small {
+      display: block; color: #7f8c8d; font-size: 0.8rem; margin-top: 8px;
+    }
+
+    .card-actions {
+      display: flex; gap: 6px; margin-top: 12px; justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 4px 8px; border: none; border-radius: 6px; font-size: 0.75rem;
+      font-weight: bold; cursor: pointer; transition: 0.2s;
+      min-width: 50px;
+    }
+    .btn-pending { background: #d35400; color: white; }
+    .btn-pending:hover { background: #e67e22; }
+    .btn-done { background: #27ae60; color: white; }
+    .btn-done:hover { background: #219653; }
+    .btn-verify { background: #f39c12; color: white; }
+    .btn-verify:hover { background: #e67e22; }
+
+    .no-complaints {
+      text-align: center; color: #95a5a6; font-style: italic; padding: 30px;
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 20px; }
+      .card { padding: 12px; }
+      .card-actions { gap: 4px; }
+      .btn { font-size: 0.7rem; padding: 3px 6px; min-width: 45px; }
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>COMPUTER SECTION</h1>
+  <div class="user-info">
+    Logged in: <span id="loggedUser"></span><br>
+    Assigned Units: <span id="assignedUnits"></span>
+  </div>
+  <div class="container" id="complaintsContainer">
+    <div class="no-complaints">Loading complaints...</div>
+  </div>
+
+  <!-- FIREBASE -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBUZIjPpELrGAgfs49zTQrWAN8MpI_HKgo",
+      authDomain: "wages-portal.firebaseapp.com",
+      databaseURL: "https://wages-portal-default-rtdb.firebaseio.com",
+      projectId: "wages-portal"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const complaintsContainer = document.getElementById('complaintsContainer');
+    const loggedUserSpan = document.getElementById('loggedUser');
+    const assignedUnitsSpan = document.getElementById('assignedUnits');
+
+    // GET LOGGED IN USER
+    const loggedInUser = localStorage.getItem('computerUser') || 'Unknown';
+    loggedUserSpan.textContent = loggedInUser;
+
+    // GET SAVED UNITS (EXACT FROM cp.html)
+    const savedUnitsString = localStorage.getItem('computerUnit') || '';
+    assignedUnitsSpan.textContent = savedUnitsString || 'None';
+
+    // SPLIT INTO LIST FOR MATCHING
+    const userUnitList = savedUnitsString
+      .split(',')
+      .map(u => u.trim())
+      .filter(u => u);
+
+    // CHECK ACCESS
+    if (userUnitList.length === 0) {
+      complaintsContainer.innerHTML = '<div class="no-complaints">Access denied. No units assigned.</div>';
+      document.body.innerHTML = complaintsContainer.outerHTML;
+    }
+
+    function loadComplaints() {
+      complaintsContainer.innerHTML = '<div class="no-complaints">Loading...</div>';
+
+      db.ref('complaints').once('value')
+        .then(snap => {
+          const complaints = [];
+          snap.forEach(child => {
+            const data = child.val();
+            // COMPARE EXACTLY WITH SAVED UNIT STRING
+            if (userUnitList.includes(data.unit)) {
+              data.key = child.key;
+              data.status = data.status || 'pending';
+              complaints.push(data);
+            }
+          });
+
+          if (complaints.length === 0) {
+            complaintsContainer.innerHTML = '<div class="no-complaints">No complaints found for your units.</div>';
+            return;
+          }
+
+          complaints.sort((a, b) => b.timestamp - a.timestamp);
+
+          complaintsContainer.innerHTML = complaints.map(c => {
+            const statusClass = c.status;
+            const statusText = c.status === 'done' ? 'Done' : c.status === 'verifying' ? 'Verifying..' : 'Pending..';
+            const statusColor = c.status === 'done' ? 'done' : c.status === 'verifying' ? 'verifying' : 'pending';
+
+            const lines = c.text.split('\n').map(line => {
+              const isUrdu = /[\u0600-\u06FF]/.test(line);
+              return `<p style="margin:0.4rem 0;" ${isUrdu ? 'class="rtl"' : ''}>${line}</p>`;
+            }).join('');
+
+            return `
+              <div class="card ${statusClass}" data-key="${c.key}">
+                <div class="card-header">
+                  <div><strong>Code:</strong> ${c.code} | <strong>Name:</strong> ${c.name}</div>
+                  <div class="status ${statusColor}">${statusText}</div>
+                </div>
+                <div class="card-body">
+                  ${lines}
+                  <small>${new Date(c.timestamp).toLocaleString()}</small>
+                </div>
+                <div class="card-actions">
+                  <button class="btn btn-pending" onclick="setStatus('${c.key}', 'pending')">Pending</button>
+                  <button class="btn btn-verify" onclick="setStatus('${c.key}', 'verifying')">Verify</button>
+                  <button class="btn btn-done" onclick="setStatus('${c.key}', 'done')">Done</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        })
+        .catch(err => {
+          complaintsContainer.innerHTML = `<div class="no-complaints">Error: ${err.message}</div>`;
+        });
+    }
+
+    window.setStatus = function(key, status) {
+      db.ref('complaints/' + key).update({ status })
+        .then(() => loadComplaints())
+        .catch(err => alert('Update failed: ' + err.message));
+    };
+
+    db.ref('complaints').on('value', () => loadComplaints());
+    window.onload = loadComplaints;
+    setInterval(loadComplaints, 15000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login</title>
+  <style>
+    body {margin:0;padding:0;height:100vh;background:linear-gradient(to bottom right,#a9d6ff,#e6f3ff);
+          font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;display:flex;flex-direction:column;
+          align-items:center;padding-top:30px;overflow:hidden;}
+    h1 {color:#0b3d91;font-size:24px;font-weight:bold;text-shadow:2px 2px 4px rgba(0,0,0,0.3);
+        margin:10px 0 8px;}
+    .form-container {background:transparent;border-radius:12px;padding:15px 20px;
+                     width:85%;max-width:360px;text-align:center;}
+    .input-wrapper {display:flex;flex-direction:column;min-height:60px;position:relative;}
+    label {font-weight:bold;color:#0b3d91;text-align:left;margin-bottom:6px;}
+    input {width:93%;padding:8px;margin-bottom:8px;border-radius:8px;
+           border:1px solid #0b3d91;font-size:14px;background:#fff;}
+    #errorMsg {color:#e63946;font-size:12px;text-align:left;position:absolute;
+               top:100%;left:0;display:none;}
+    #goBtn {width:100%;background:#0b3d91;color:white;border:none;padding:10px;
+            border-radius:10px;font-weight:bold;font-size:18px;cursor:pointer;
+            box-shadow:4px 6px 10px rgba(0,0,0,0.4);transition:0.3s;margin-top:20px;}
+    #goBtn:hover {background:#094080;transform:scale(1.03);}
+  </style>
+</head>
+<body>
+  <h1>ADMIN LOGIN</h1>
+  <div class="form-container">
+    <div class="input-wrapper">
+      <label>Enter Email</label>
+      <input type="email" id="email" placeholder="admin@wages.com" 
+             autocomplete="off" spellcheck="false">
+    </div>
+    <div class="input-wrapper">
+      <label>Enter Password</label>
+      <input type="password" id="password" placeholder="••••••" 
+             autocomplete="new-password" spellcheck="false">
+      <span id="errorMsg">Wrong email or password</span>
+    </div>
+    <button id="goBtn">LOGIN</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBUZIjPpELrGAgfs49zTQrWAN8MpI_HKgo",
+      authDomain: "wages-portal.firebaseapp.com",
+      databaseURL: "https://wages-portal-default-rtdb.firebaseio.com",
+      projectId: "wages-portal"
+    });
+    const auth = firebase.auth();
+
+    const goBtn = document.getElementById('goBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const errorMsg = document.getElementById('errorMsg');
+
+    // FORCE FRESH EVERY TIME
+    window.onload = () => {
+      emailInput.value = '';
+      passwordInput.value = '';
+      localStorage.removeItem('adminLoggedIn');
+      errorMsg.style.display = 'none';
+      // BLOCK BROWSER AUTO-FILL
+      setTimeout(() => {
+        emailInput.setAttribute('autocomplete', 'off');
+        passwordInput.setAttribute('autocomplete', 'new-password');
+      }, 100);
+    };
+
+    goBtn.onclick = () => {
+      const email = emailInput.value.trim();
+      const pass = passwordInput.value.trim();
+      if (!email || !pass) { errorMsg.style.display='block'; return; }
+
+      auth.signInWithEmailAndPassword(email, pass)
+        .then(() => {
+          localStorage.setItem('adminLoggedIn', 'true');
+          location = 'AdminPanel.html';
+        })
+        .catch(() => {
+          errorMsg.style.display = 'block';
+          emailInput.value = '';
+          passwordInput.value = '';
+        });
+    };
+
+    // NO ACTION ON CLICK/FOCUS
+    emailInput.onclick = passwordInput.onclick = 
+    emailInput.onfocus = passwordInput.onfocus = () => null;
+
+    // HIDE ERROR ON TYPE
+    emailInput.oninput = passwordInput.oninput = () => errorMsg.style.display='none';
+
+    // ENTER = LOGIN
+    document.onkeydown = e => { if (e.key==='Enter') goBtn.click(); };
+  </script>
+</body>
+</html>
